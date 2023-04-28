@@ -4,11 +4,12 @@
 #define TFT_WR  D3
 #define TFT_RS  D2
 #define TFT_CS  D1
-#define TFT_RST D1
+#define TFT_RST D0
 
 // data pins
 // Port data |A7 |A6 |A5 |A4 |A3 |A2 |A1 |A0 |
 // Pin stm32 |PA7|PA6|PA5|PA4|PA3|PA2|PA1|PA0|
+
 #define TFT_D0 A0
 #define TFT_D1 A1
 #define TFT_D2 A2
@@ -30,7 +31,7 @@
 #define RST_IDLE   digitalWrite(TFT_RST, HIGH)
 
 #define RD_STROBE      {RD_ACTIVE; RD_IDLE;} // Not use
-#define WR_STROBE      {WR_ACTIVE; WR_IDLE;} // Not use
+#define WR_STROBE      {WR_ACTIVE; WR_IDLE;}
 
 void setupControlPins() {
   pinMode(TFT_RD, OUTPUT);
@@ -40,17 +41,17 @@ void setupControlPins() {
   pinMode(TFT_RST, OUTPUT);
 }
 
-void setDatapinsAsInput(){
-  pinMode(TFT_D0, INPUT_PULLDOWN);
-  pinMode(TFT_D1, INPUT_PULLDOWN);
-  pinMode(TFT_D2, INPUT_PULLDOWN);
-  pinMode(TFT_D3, INPUT_PULLDOWN);
-  pinMode(TFT_D4, INPUT_PULLDOWN);
-  pinMode(TFT_D5, INPUT_PULLDOWN);
-  pinMode(TFT_D6, INPUT_PULLDOWN);
-  pinMode(TFT_D7, INPUT_PULLDOWN);
+void TFT_Driver::setReadDataBus(){
+  pinMode(TFT_D0, INPUT);
+  pinMode(TFT_D1, INPUT);
+  pinMode(TFT_D2, INPUT);
+  pinMode(TFT_D3, INPUT);
+  pinMode(TFT_D4, INPUT);
+  pinMode(TFT_D5, INPUT);
+  pinMode(TFT_D6, INPUT);
+  pinMode(TFT_D7, INPUT);
 }
-void setDatapinsAsOutput(){
+void TFT_Driver::setWriteDataBus(){
   pinMode(TFT_D0, OUTPUT);
   pinMode(TFT_D1, OUTPUT);
   pinMode(TFT_D2, OUTPUT);
@@ -77,75 +78,44 @@ TFT_Driver::TFT_Driver(void) {
   delay(150);
 }
 
-
-uint16_t TFT_Driver::read16bits(void)
-{
-  uint16_t ret;
-  uint8_t lo;
-  uint8_t hi;
-  CS_ACTIVE;
-  CD_DATA;
-  hi = read8();
-  //all MIPI_DCS_REV1 style params are 8-bit
-  lo = read8();
-  CS_IDLE;
-  return (hi << 8) | lo;
-}
-
 uint8_t TFT_Driver::read8(void){
-  setDatapinsAsInput();
+  setReadDataBus();
   RD_ACTIVE;
   delay(5);
-
   uint8_t ret = 0x0000;
   if(digitalRead(TFT_D0)){
     ret |= 1 << 0;
-  } else {
-    ret |= 0 << 0;
   }
   if(digitalRead(TFT_D1)){
     ret |= 1 << 1;
-  } else {
-    ret |= 0 << 1;
   }
   if(digitalRead(TFT_D2)){
     ret |= 1 << 2;
-  } else {
-    ret |= 0 << 2;
   }
   if(digitalRead(TFT_D3)){
     ret |= 1 << 3;
-  } else {
-    ret |= 0 << 3;
   }
   if(digitalRead(TFT_D4)){
     ret |= 1 << 4;
-  } else {
-    ret |= 0 << 4;
   }
   if(digitalRead(TFT_D5)){
     ret |= 1 << 5;
-  } else {
-    ret |= 0 << 5;
   }
   if(digitalRead(TFT_D6)){
     ret |= 1 << 6;
-  } else {
-    ret |= 0 << 6;
   }
   if(digitalRead(TFT_D7)){
     ret |= 1 << 7;
-  } else {
-    ret |= 0 << 7;
   }
-
   RD_IDLE;
   delay(5);
   return ret;
 }
+
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
+
 void TFT_Driver::write8(uint8_t c) {
-  setDatapinsAsOutput();
+  setWriteDataBus();
 
   digitalWrite(TFT_D0, (CHECK_BIT(c, 0)) ? HIGH : LOW);
   digitalWrite(TFT_D1, (CHECK_BIT(c, 1)) ? HIGH : LOW);
@@ -156,17 +126,41 @@ void TFT_Driver::write8(uint8_t c) {
   digitalWrite(TFT_D6, (CHECK_BIT(c, 6)) ? HIGH : LOW);
   digitalWrite(TFT_D7, (CHECK_BIT(c, 7)) ? HIGH : LOW);
   WR_STROBE;
-  //delayMicroseconds(50); //used to observe patterns
+  delayMicroseconds(50); //used to observe patterns
+}
+
+uint16_t TFT_Driver::readID(void)
+{
+    uint16_t ret;
+    ret = readReg16(0);           //forces a reset() if called before begin()
+    Serial.println("readReg16(0)=0x" + String(ret,HEX));
+    return ret;
 }
 
 uint16_t TFT_Driver::readReg16(uint16_t reg)
 {
   uint16_t ret;
-  uint8_t lo;
   writeCmdWord(reg);
+  //    READ_16(ret);
   ret = read16bits();
-  setDatapinsAsOutput();
   return ret;
+}
+
+uint16_t TFT_Driver::read16bits(void)
+{
+  uint8_t lo;
+  uint8_t hi;
+  CS_ACTIVE;
+  CD_DATA;
+  WR_IDLE;
+  RD_ACTIVE;
+  hi = read8();
+  RD_STROBE;
+  //all MIPI_DCS_REV1 style params are 8-bit
+  lo = read8();
+  RD_IDLE;
+  CS_IDLE;
+  return (hi << 8) | lo;
 }
 
 void TFT_Driver::writeCmdWord(uint16_t c) {
@@ -177,10 +171,18 @@ void TFT_Driver::writeCmdWord(uint16_t c) {
   CS_IDLE;
 }
 
-uint16_t TFT_Driver::readID(void)
-{
-    uint16_t ret;
-    ret = readReg16(0);           //forces a reset() if called before begin()
-    Serial.println("readReg16(0)=0x" + String(ret,HEX));
-    return ret;
+uint8_t TFT_Driver::readcommand8(uint8_t c) {
+  writeCmdByte(c);
+  CS_ACTIVE;
+  CD_DATA;
+  uint8_t data = read8();
+  CS_IDLE;
+  return data;
+}
+
+void TFT_Driver::writeCmdByte(uint8_t c) {
+  CD_COMMAND;
+  CS_ACTIVE;
+  write8(c);
+  CS_IDLE;
 }

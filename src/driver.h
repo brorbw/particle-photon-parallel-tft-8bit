@@ -58,21 +58,23 @@ class TFT_Driver {
   //uint8_t  readdata(void),
   uint8_t  readcommand8(uint8_t reg);
   uint16_t read16bits(void);
+  uint8_t read8(void);
   uint16_t readReg16(uint16_t reg);
   uint16_t readReg16Index(uint16_t reg, int8_t index);
   uint32_t readReg32(uint16_t reg);
   uint32_t readReg40(uint16_t reg);
   uint16_t readID(void);
+  void     writeCmdWord(uint16_t c);
 
 
   private:
   //uint8_t  tabcolor;
-  uint8_t  read8(void);
+  // uint8_t  read8(void);
   void     setReadDataBus(void);
   void     setWriteDataBus(void);
   void     write8(uint8_t);
   void     writeCmdByte(uint8_t c);
-  void     writeCmdWord(uint16_t c);
+  // void     writeCmdWord(uint16_t c);
   void     WriteCmd(uint16_t c);
   void     writeDataByte(uint8_t d);
   void     writeDataWord(uint16_t d);
