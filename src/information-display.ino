@@ -12,8 +12,7 @@ void setup() {
 void loop() {
   delay(500);
   // Serial.println(id);
-  tft.writeCmdWord(0);
+  // tft.writeCmdWord(0);
   Serial.println(String(tft.read16bits(), HEX));
-
-  Serial.println(String(tft.readReg16(0), HEX));
+  Serial.println(String(tft.read16bits(), HEX));
 }

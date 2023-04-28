@@ -155,8 +155,10 @@ uint16_t TFT_Driver::read16bits(void)
   WR_IDLE;
   RD_ACTIVE;
   hi = read8();
-  RD_STROBE;
-  //all MIPI_DCS_REV1 style params are 8-bit
+
+  CS_IDLE;
+  CS_ACTIVE;
+
   lo = read8();
   RD_IDLE;
   CS_IDLE;
